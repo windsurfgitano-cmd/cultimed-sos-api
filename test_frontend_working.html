@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test SOS Endpoint - FUNCIONANDO</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .test-case { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .result { margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 3px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .document-list { margin-top: 10px; }
+        .document-item { margin: 5px 0; padding: 5px; background: white; border-radius: 3px; }
+        .document-link { color: #1976d2; text-decoration: none; }
+        .document-link:hover { text-decoration: underline; }
+        .status { padding: 2px 8px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
+        .status-approved { background: #e8f5e8; color: #2e7d32; }
+        .status-rejected { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Test SOS Endpoint - FUNCIONANDO</h1>
+    <p><strong>Endpoint:</strong> http://localhost:3000/api/sos</p>
+    
+    <div class="test-case">
+        <h3>Test 1: Paciente con documentos</h3>
+        <button onclick="testPatient('17.797.136-7', 'orellanaf784@gmail.com')">Probar</button>
+        <div id="result1" class="result"></div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test 2: Paciente sin documentos</h3>
+        <button onclick="testPatient('10.260.672-8', 'cnavarro@corrupac.cl')">Probar</button>
+        <div id="result2" class="result"></div>
+    </div>
+    
+    <div class="test-case">
+        <h3>Test 3: Paciente no encontrado</h3>
+        <button onclick="testPatient('11.111.111-1', 'noexiste@test.com')">Probar</button>
+        <div id="result3" class="result"></div>
+    </div>
+
+    <script>
+        const ENDPOINT = 'http://localhost:3000/api/sos';
+        
+        async function testPatient(rut, email) {
+            const resultDiv = event.target.nextElementSibling;
+            resultDiv.innerHTML = '⏳ Enviando...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch(ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ rut, email })
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'ok' && data.record) {
+                    let documentosHtml = '';
+                    if (data.record.tiene_documentos) {
+                        documentosHtml = '<div class="document-list"><h4>📄 Documentos:</h4>';
+                        
+                        if (data.record.foto_frontal_carnet) {
+                            documentosHtml += `<div class="document-item">📷 <a href="${data.record.foto_frontal_carnet}" target="_blank" class="document-link">Foto Carnet (Frontal)</a></div>`;
+                        }
+                        if (data.record.foto_trasera_carnet) {
+                            documentosHtml += `<div class="document-item">📷 <a href="${data.record.foto_trasera_carnet}" target="_blank" class="document-link">Foto Carnet (Trasera)</a></div>`;
+                        }
+                        if (data.record.certificado_antecedentes) {
+                            documentosHtml += `<div class="document-item">📋 <a href="${data.record.certificado_antecedentes}" target="_blank" class="document-link">Certificado Antecedentes</a></div>`;
+                        }
+                        if (data.record.comprobante_transferencia) {
+                            documentosHtml += `<div class="document-item">💰 <a href="${data.record.comprobante_transferencia}" target="_blank" class="document-link">Comprobante Transferencia</a></div>`;
+                        }
+                        if (data.record.receta_medica) {
+                            documentosHtml += `<div class="document-item">💊 <a href="${data.record.receta_medica}" target="_blank" class="document-link">Receta Médica</a></div>`;
+                        }
+                        if (data.record.documento_cesion_derechos) {
+                            documentosHtml += `<div class="document-item">📝 <a href="${data.record.documento_cesion_derechos}" target="_blank" class="document-link">Cesión Derechos</a></div>`;
+                        }
+                        
+                        documentosHtml += '</div>';
+                    } else {
+                        documentosHtml = '<p><em>No hay documentos digitalizados</em></p>';
+                    }
+                    
+                    const statusClass = data.record.estado_aprobacion === 'aprobado' ? 'status-approved' : 'status-rejected';
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Paciente Encontrado</h3>
+                            <p><strong>Nombre:</strong> ${data.record.nombre || 'N/A'}</p>
+                            <p><strong>RUT:</strong> ${data.record.rut_normalizado || 'N/A'}</p>
+                            <p><strong>Email:</strong> ${data.record.correo || 'N/A'}</p>
+                            <p><strong>Teléfono:</strong> ${data.record.telefono || 'N/A'}</p>
+                            <p><strong>Estado:</strong> <span class="status ${statusClass}">${data.record.estado_aprobacion || 'N/A'}</span></p>
+                            ${data.record.notas ? `<p><strong>Notas:</strong> ${data.record.notas}</p>` : ''}
+                            ${documentosHtml}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ ${data.status === 'not_found' ? 'Paciente No Encontrado' : 'Error'}</h3>
+                            <p>${data.message || 'Error desconocido'}</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error de Conexión</h3>
+                        <p>${error.message}</p>
+                        <p><small>Asegúrate que el servidor esté corriendo: node sos_server_local.js</small></p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
